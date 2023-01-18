@@ -15,6 +15,7 @@ void setup() {
   while (!Serial) { delay(10); }  // Wait for serial console to open!
   Wire.begin();
   M5.begin();
+  M5.Lcd.setRotation(3);
   Serial.println("Start");
   sensor.setTimeout(500);
   Serial.println("VL53L0X");
@@ -38,7 +39,15 @@ void setup() {
 int counter = 0;
 void loop() {
   M5.update();
-  Serial.print(sensor.readRangeSingleMillimeters());
+  if (!sgp.IAQmeasure()) {
+    Serial.println("Measurement failed");
+    return;
+  }
+  uint16_t range = sensor.readRangeSingleMillimeters();
+  uint16_t tvoc = sgp.TVOC;
+  uint16_t co2 = sgp.eCO2;
+
+  Serial.print(range);
   if (sensor.timeoutOccurred()) { Serial.print(" TIMEOUT"); }
 
   Serial.println();
@@ -46,10 +55,7 @@ void loop() {
     esp_restart();
   }
 
-  if (!sgp.IAQmeasure()) {
-    Serial.println("Measurement failed");
-    return;
-  }
+
   Serial.print("TVOC ");
   Serial.print(sgp.TVOC);
   Serial.print(" ppb\t");
@@ -83,11 +89,17 @@ void loop() {
     Serial.print(" & TVOC: 0x");
     Serial.println(TVOC_base, HEX);
   }
-
+  //print
+  M5.Lcd.fillRect(0, 20, 319, 239, BLACK);
+  M5.Lcd.setCursor(0, 20);
+  M5.Lcd.print("range:");
+  M5.Lcd.println(range);
+  M5.Lcd.print("tvoc:");
+  M5.Lcd.println(tvoc);
+  M5.Lcd.print("co2:");
+  M5.Lcd.println(co2);
   // ble
-  uint16_t range = sensor.readRangeSingleMillimeters();
-  uint16_t tvoc = sgp.TVOC;
-  uint16_t co2 = sgp.eCO2;
+
 
   BLEAdvertising *pAdvertising = pServer->getAdvertising();
   BLEAdvertisementData oAdvertisementData = BLEAdvertisementData();
@@ -111,6 +123,6 @@ void loop() {
   pAdvertising->start();
   Serial.println("Advertizing started...");
 
-  delay(10000);
+  delay(5000);
   pAdvertising->stop();
 }
